@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(.venv/Scripts/python main.py)",
+      "Bash(.venv/Scripts/python -m pytest test_pawpal.py -v)",
+      "Bash(.venv/Scripts/python -m pytest tests/test_pawpal.py -v)"
+    ]
+  }
+}
