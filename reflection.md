@@ -61,12 +61,22 @@ For a daily pet care app, priority correctness matters more than packing efficie
 **a. How you used AI**
 
 - How did you use AI tools during this project (for example: design brainstorming, debugging, refactoring)?
+
+I used AI for brainstorming, debugging, and refactoring code. I generated the initial code with claude and I assigned it multiple constraints to ensure alignment with system design. I ran QA
+
 - What kinds of prompts or questions were most helpful?
+
+Reiterate as many times as necessary and run e2e tests after every change. Ensure new features align with project design. Document changes. etc.
 
 **b. Judgment and verification**
 
 - Describe one moment where you did not accept an AI suggestion as-is.
+
+The AI wanted to implement unnecessary setter functions for Owner and Pet when not necessary.
+
 - How did you evaluate or verify what the AI suggested?
+
+I reprompted the AI questioning the previous results so that it could rereason them, therefore realizing it is unnecessary. 
 
 ---
 

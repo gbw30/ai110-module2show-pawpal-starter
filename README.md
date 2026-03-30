@@ -65,6 +65,8 @@ python -m pytest tests/test_pawpal.py -v
 
 The `-v` flag prints each test name and its pass/fail result. All 15 tests should pass.
 
+**Test confidence: ★★★★★** — 15/15 tests passing across all core behaviors.
+
 ### What the tests cover
 
 The suite verifies four areas of the scheduling system:
