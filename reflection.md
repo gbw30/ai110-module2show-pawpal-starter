@@ -49,7 +49,10 @@ planned_tasks function was added as an attribute on Scheduler because there was 
 **b. Tradeoffs**
 
 - Describe one tradeoff your scheduler makes.
+`generate_plan()` uses a greedy algorithm — it sorts tasks by priority and duration, then fills available time from the top down, accepting each task the moment it fits. This means it never backtracks. If a high-priority task is long and leaves a small gap, shorter lower-priority tasks that could fill that gap are simply excluded, even if a different ordering would fit more tasks in total.
+
 - Why is that tradeoff reasonable for this scenario?
+For a daily pet care app, priority correctness matters more than packing efficiency. An owner would rather guarantee that the most important tasks (feeding, medication) are always scheduled first and accept that a low-priority grooming task gets dropped, than have the scheduler rearrange priorities to squeeze in one extra task. The greedy approach also keeps the scheduling logic simple and predictable — the owner can understand why each task was or wasn't included.
 
 ---
 
