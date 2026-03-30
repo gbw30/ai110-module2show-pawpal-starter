@@ -5,7 +5,29 @@
 **a. Initial design**
 
 - Briefly describe your initial UML design.
+
+The three most important core actions are:
+
+1. To Add/manage a task: tasks are the most important data since all other actions revolve around them (ex. scheduling)
+2. Set owner + pet info: these are the constraints of the data for the schedule
+3. Generate a daily schedule: this is the value of the app, it uses the data from #1 and constraints from #2 to create the schedule.
+
 - What classes did you include, and what responsibilities did you assign to each?
+
+The classes I included are Owner, Pet, Task, and Scheduler.
+Owner has attributes name (str) and time_available (int) with a constructor __init__(name, time_available). No setter methods are needed since attributes are set at construction and can be reassigned directly.
+
+Pet has attributes name (str) and species (str) with a constructor __init__(name, species). Same reasoning as Owner — no setter methods needed.
+
+Task has attributes name (str), duration (int minutes) and priority (int x {x in between 1-3 where 1 is high and 3 is low}) with constructor __init__(name, duration, priority) and methods set_name, set_duration(minutes), set_priority(int), and __str__ for displaying the task in the Streamlit UI. Setters are kept here because tasks need to be editable after creation.
+
+Scheduler has attributes owner (Owner), pet (Pet), tasks (list of Task) with methods add_task(Task), remove_task(Task), edit_task(Task, name, duration, priority), generate_plan() -> list of Task, and explain_plan() -> str.
+
+The responsabilities are:
+Owner: stores the human constraints
+Pet: stores the pet's identity and constraints
+Task: represents one unit of care work, so it knows what the care task is, its duration and importance. Manages its own data.
+Scheduler: it is the brain. It maintaints the list of tasks, decides which tasks fit the owner's constraints, orders the tasks by priority, produces the final daily plan, and explain why it chose this plan for transparency.
 
 **b. Design changes**
 
