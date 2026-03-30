@@ -62,7 +62,7 @@ For a daily pet care app, priority correctness matters more than packing efficie
 
 - How did you use AI tools during this project (for example: design brainstorming, debugging, refactoring)?
 
-I used AI for brainstorming, debugging, and refactoring code. I generated the initial code with claude and I assigned it multiple constraints to ensure alignment with system design. I ran QA
+I used AI for brainstorming, debugging, and refactoring code. I generated the initial code with claude and I assigned it multiple constraints to ensure alignment with system design. I ran QA tests on the local instance to ensure project functions as required, then using AI to debug errors found through QA. I used Windsurf explain to have a deeper, more thorough understanding of the AI generated code to find faults for refactoring. I also used AI for design brainstorming by creating a feedback loop with it and updating the design as needed (for example, from MVP to full project architecture).
 
 - What kinds of prompts or questions were most helpful?
 
