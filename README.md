@@ -1,164 +1,144 @@
-# PawPal+ (Module 2 Project)
+# PawPal+
 
-You are building **PawPal+**, a Streamlit app that helps a pet owner plan care tasks for their pet.
+PawPal+ is a Streamlit application and Python scheduling engine for daily pet care planning. It helps a pet owner capture care tasks, manage recurring work, detect timing conflicts, and build a day plan that respects limited available time.
 
-## Scenario
+The project is split into a UI layer in `app.py`, a scheduling domain model in `pawpal_system.py`, and a pytest suite in `tests/test_pawpal.py`.
 
-A busy pet owner needs help staying consistent with pet care. They want an assistant that can:
+## 📸 Demo
 
-- Track pet care tasks (walks, feeding, meds, enrichment, grooming, etc.)
-- Consider constraints (time available, priority, owner preferences)
-- Produce a daily plan and explain why it chose that plan
+![PawPal+ UI](pawpal_ui.png)
 
-Your job is to design the system first (UML), then implement the logic in Python, then connect it to the Streamlit UI.
+## Features
 
-## What you will build
+- Streamlit dashboard for owner and pet setup, task entry, task review, filtering, sorting, completion, removal, and schedule generation.
+- Priority-first greedy scheduling: `generate_plan()` filters out completed tasks, sorts remaining tasks by priority (`1` highest, `3` lowest), breaks ties by shortest duration first, and accepts each task if it fits within the remaining time budget.
+- Exact-fit support: tasks that match the remaining available minutes exactly are included in the plan.
+- Conflict detection with interval overlap logic: `detect_conflicts()` converts `start_time` values to minutes since midnight and flags overlaps while correctly ignoring back-to-back tasks.
+- Cross-pet conflict detection in the backend: `detect_conflicts(other=...)` can compare schedules across two pets owned by the same person.
+- Recurring task regeneration: completing a `daily` or `weekly` task creates the next occurrence with the correct due date using `timedelta`.
+- Duplicate protection: `add_task()` blocks duplicate incomplete task names while still allowing a task name to be reused after the prior task is completed.
+- Filtering and sorting utilities: the backend supports filtering by completion state and pet name, and the UI supports sorting by default priority order or shortest duration.
+- Clear schedule outputs: the UI shows time-budget metrics, scheduled tasks, excluded tasks, and conflict warnings so the result is easy to review.
 
-Your final app should:
+## How It Works
 
-- Let a user enter basic owner + pet info
-- Let a user add/edit tasks (duration + priority at minimum)
-- Generate a daily schedule/plan based on constraints and priorities
-- Display the plan clearly (and ideally explain the reasoning)
-- Include tests for the most important scheduling behaviors
+### Core data model
 
-## Getting started
+- `Owner` stores the owner's name and daily time available.
+- `Pet` stores the pet's basic identity.
+- `Task` stores the task name, duration, priority, completion state, recurrence, optional due date, and optional start time.
+- `Scheduler` owns the task list and contains the scheduling, filtering, recurrence, and conflict-detection logic.
+
+### Scheduling algorithm
+
+The planner uses a greedy algorithm. It evaluates incomplete tasks in priority order, breaks ties by shortest duration, and adds tasks one by one while the total stays within the owner's time limit. This makes the schedule predictable and ensures higher-priority work is considered first, even if that can leave some unused time.
+
+### Conflict algorithm
+
+When a task has a `start_time`, the scheduler treats it as a time window `[start, end)`. Two tasks conflict only when those windows overlap. This means a task ending at `07:10` and another starting at `07:10` are not treated as a conflict.
+
+## Running the App
+
+### Requirements
+
+- Python 3.10 or newer
+- `pip`
 
 ### Setup
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
+```
+
+Activate the virtual environment:
+
+```bash
+# Windows
+.\.venv\Scripts\activate
+
+# macOS / Linux
+source .venv/bin/activate
+```
+
+Install dependencies:
+
+```bash
 pip install -r requirements.txt
 ```
 
-## Smarter Scheduling
+### Start the Streamlit UI
 
-PawPal+ goes beyond a simple task list with several scheduling improvements:
+```bash
+python -m streamlit run app.py
+```
 
-- **Priority-first greedy planning** — `generate_plan()` sorts tasks by priority (high → low),
-  breaking ties by shortest duration first, then fills the owner's available time greedily.
-  High-priority tasks such as feeding and medication are always considered before lower-priority ones.
+Streamlit will print a local URL, typically `http://localhost:8501`.
 
-- **Recurring tasks** — Tasks can be marked `daily` or `weekly`. When completed via
-  `complete_task()`, a new instance is automatically created with the correct next due date
-  using `timedelta` (`+1 day` for daily, `+7 days` for weekly).
+## Using the App
 
-- **Conflict detection** — `detect_conflicts()` checks whether any two tasks have overlapping
-  time windows using an interval overlap algorithm. Pass a second `Scheduler` to catch
-  cross-pet conflicts — for example, two pets both scheduled for feeding at the same time.
+1. Enter owner details and daily time available.
+2. Enter pet details.
+3. Add tasks with duration, priority, optional recurrence, and optional start time.
+4. Review tasks in the task list, then filter or sort them as needed.
+5. Mark tasks done or remove them from the list.
+6. Click `Generate schedule` to run conflict detection and build the daily plan.
+7. Review scheduled tasks, excluded tasks, and time-budget metrics.
 
-- **Duplicate prevention** — `add_task()` blocks adding a task whose name already exists
-  in the pool as an incomplete task, preventing accidental duplicates while still allowing
-  recurrence instances once the previous task is marked done.
+## Testing
 
-- **Filtering and sorting** — `filter_tasks()` returns tasks by completion status or pet name.
-  `sort_by_time()` reorders the pool by duration (shortest first) for quick review.
-
-## Testing PawPal+
-
-### Running the tests
+Run the automated tests with:
 
 ```bash
 python -m pytest tests/test_pawpal.py -v
 ```
 
-The `-v` flag prints each test name and its pass/fail result. All 15 tests should pass.
+The suite currently contains 15 tests covering:
 
-**Test confidence: ★★★★★** — 15/15 tests passing across all core behaviors.
+- task addition
+- time-budget enforcement
+- priority ordering
+- shortest-duration tie breaking
+- exact-fit scheduling
+- skipping completed tasks
+- daily and weekly recurrence
+- duplicate prevention
+- same-name reuse after completion
+- single-pet and cross-pet conflict detection
+- non-overlapping back-to-back tasks
+- filtering by pet name
 
-### What the tests cover
+## Project Structure
 
-The suite verifies four areas of the scheduling system:
+```text
+.
+|-- app.py
+|-- pawpal_system.py
+|-- tests/
+|   |-- test_pawpal.py
+|-- main.py
+|-- README.md
+|-- requirements.txt
+|-- initial_design.md
+|-- current_design.md
+|-- reflection.md
+|-- pawpal_ui.png
+`-- uml_final.png
+```
 
-- **Priority ordering** — `generate_plan()` sorts tasks correctly by priority and breaks ties by shortest duration first.
-- **Recurrence logic** — completing a daily or weekly task spawns a new instance with the correct due date; completing a non-recurring task does not.
-- **Conflict detection** — overlapping time windows are flagged; back-to-back tasks and cross-pet conflicts are handled correctly.
-- **Duplicate prevention and filtering** — `add_task()` blocks duplicate incomplete tasks but allows re-entry after completion; `filter_tasks()` returns an empty list for an unrecognized pet name.
+### File guide
 
-### Test logic in depth
+- `app.py`: Streamlit interface for entering tasks and generating a schedule.
+- `pawpal_system.py`: domain classes and scheduling logic.
+- `tests/test_pawpal.py`: automated verification of core scheduler behavior.
+- `main.py`: scriptable demo for exercising the backend without Streamlit.
+- `initial_design.md`: early design notes.
+- `current_design.md`: updated design summary aligned to the implemented system.
+- `reflection.md`: project reflection and testing notes.
+- `pawpal_ui.png`: screenshot used in this README demo section.
+- `uml_final.png`: final UML diagram for the project.
 
-#### Setup
+## Notes and Current Scope
 
-`make_scheduler(time_available=60)` is a shared helper that returns a `Scheduler` with a default owner (Jordan, 60 min) and pet (Mochi, dog). Every test that needs a scheduler calls this to avoid repeating setup code.
-
----
-
-#### Original tests
-
-**`test_task_addition_increases_count`**
-Calls `add_task()` twice with different task names and asserts the pool grows from 0 → 1 → 2. Verifies the most basic contract: tasks are actually stored.
-
-**`test_generate_plan_respects_time_available`**
-Owner has 40 minutes. Adds a 30-min task, a 10-min task, and a 45-min task. Asserts the plan's total duration never exceeds 40 and that `Bath` (45 min) exists in the pool but is absent from the plan.
-
----
-
-#### Priority ordering
-
-**`test_generate_plan_orders_by_priority`**
-Adds three tasks in reverse priority order (low, high, medium) and checks the plan returns them in correct order: Feeding (1) → Enrichment (2) → Grooming (3). Verifies that input order does not affect output — only priority does.
-
-**`test_generate_plan_tiebreaks_by_shortest_duration`**
-All three tasks share priority 2 but have durations of 30, 10, and 20 minutes. Asserts the plan's durations are sorted ascending. Verifies the tie-breaking rule: equal-priority tasks are ordered shortest first.
-
-**`test_generate_plan_exact_fit_is_included`**
-Owner has exactly 30 minutes; task is exactly 30 minutes. Asserts the task is scheduled. Verifies the greedy condition uses `<=` so an exact fit is never accidentally excluded.
-
-**`test_generate_plan_skips_completed_tasks`**
-Adds a task, marks it complete, then generates a plan. Asserts the plan is empty. Verifies completed tasks are filtered out before scheduling runs.
-
----
-
-#### Recurring tasks
-
-**`test_complete_daily_task_spawns_next_occurrence`**
-Creates a `recurrence="daily"` task and calls `complete_task()`. Checks that exactly one incomplete task remains and its `due_date` equals `today + 1 day`. Verifies daily recurrence spawning.
-
-**`test_complete_weekly_task_spawns_next_occurrence`**
-Same structure with `recurrence="weekly"`. Asserts `due_date` equals `today + 7 days`. Verifies weekly recurrence spawning.
-
-**`test_complete_nonrecurring_task_spawns_nothing`**
-No `recurrence` set. Calls `complete_task()` and asserts the task count stays at 1. Verifies no extra task is created for one-time tasks.
-
----
-
-#### Duplicate prevention
-
-**`test_add_task_blocks_duplicate_incomplete`**
-Adds `"Feeding"` twice. Asserts `add_task()` returns `False` on the second call and the pool still holds only one task. Verifies the duplicate guard works.
-
-**`test_add_task_allows_same_name_after_completion`**
-Adds `"Feeding"`, marks it complete, then adds `"Feeding"` again. Asserts `add_task()` returns `True` and one incomplete task exists. Verifies that completion unlocks the name so recurring tasks can re-enter the pool.
-
----
-
-#### Conflict detection
-
-**`test_detect_conflicts_flags_overlapping_tasks`**
-Morning walk starts 08:00 and runs 30 minutes (ends 08:30). Enrichment starts 08:15 — a 15-minute overlap. Asserts exactly one conflict warning is returned.
-
-**`test_detect_conflicts_ignores_back_to_back`**
-Feeding ends at 07:10 and Morning walk starts at 07:10. Asserts zero warnings. Verifies the overlap formula uses strict inequalities so touching endpoints are not treated as a conflict.
-
-**`test_detect_conflicts_cross_pet`**
-Two schedulers (Mochi and Luna) each have a `"Feeding"` task starting at 09:00. Passes `luna_scheduler` as `other=`. Asserts one conflict warning is generated. Verifies that cross-pet overlaps are caught when a second scheduler is provided.
-
----
-
-#### Filtering
-
-**`test_filter_tasks_wrong_pet_name_returns_empty`**
-The scheduler belongs to Mochi. Calls `filter_tasks(pet_name="Luna")` and asserts the result is `[]`. Verifies the pet name guard returns an empty list rather than raising an error or leaking another pet's tasks.
-
----
-
-### Suggested workflow
-
-1. Read the scenario carefully and identify requirements and edge cases.
-2. Draft a UML diagram (classes, attributes, methods, relationships).
-3. Convert UML into Python class stubs (no logic yet).
-4. Implement scheduling logic in small increments.
-5. Add tests to verify key behaviors.
-6. Connect your logic to the Streamlit UI in `app.py`.
-7. Refine UML so it matches what you actually built.
+- Task data is stored in Streamlit session state, not a database. Restarting the app clears the in-memory UI state.
+- The current Streamlit UI manages one pet at a time, while cross-pet conflict detection is available through the backend API and test suite.
+- The backend also supports a plain-text plan explanation through `Scheduler.explain_plan()`, which is useful for console output and debugging.

@@ -85,12 +85,22 @@ I reprompted the AI questioning the previous results so that it could rereason t
 **a. What you tested**
 
 - What behaviors did you test?
+
+I tested task addition, time-limit handling in generate_plan, priority ordering, shortest-duration tie breaking, exact-fit scheduling, skipping completed tasks, recurring task regeneration (daily and weekly), duplicate prevention, conflict detection, and filtering by pet name.
+
 - Why were these tests important?
+
+These tests mattered because they cover the main promises of the system. The scheduler must respect available time, choose the most important tasks first, avoid adding duplicate incomplete tasks, and correctly handle recurring tasks after completion. I also tested conflicts because a schedule is not useful if two tasks overlap in time without warning.
 
 **b. Confidence**
 
 - How confident are you that your scheduler works correctly?
+
+I am reasonably confident that the scheduler works correctly for the main use cases. The core scheduling rules were tested directly with pytest, and I also ran manual QA on the Streamlit app to make sure the UI triggered the expected behavior. I would give it 5 stars (as seen in the README.md)
+
 - What edge cases would you test next if you had more time?
+
+If I had more time, I would test larger task lists, tasks with the same priority and same duration, empty schedules, very small and very large time limits, and more complex overlap cases across multiple pets. I would also test cases where the greedy algorithm leaves unused time even though a different combination of tasks could fit more total work.
 
 ---
 
@@ -100,10 +110,16 @@ I reprompted the AI questioning the previous results so that it could rereason t
 
 - What part of this project are you most satisfied with?
 
+The final product worked properly. It was satisfying to see it complete.
+
 **b. What you would improve**
 
 - If you had another iteration, what would you improve or redesign?
 
+I would improve the UI, it is too basic and barebones. Maybe add user login. Google calendar integratinon would be nice too.
+
 **c. Key takeaway**
 
 - What is one important thing you learned about designing systems or working with AI on this project?
+
+Ai is a really good tool for developing systems, but they have to be kept in check as they tend to produce unnecessary complexity.
