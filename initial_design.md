@@ -31,6 +31,7 @@ classDiagram
         +Owner owner
         +Pet pet
         +list tasks
+        +list planned_tasks
         +add_task(task: Task)
         +remove_task(task: Task)
         +edit_task(task: Task, name: str, duration: int, priority: int)

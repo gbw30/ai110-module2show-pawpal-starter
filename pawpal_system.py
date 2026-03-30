@@ -38,6 +38,7 @@ class Scheduler:
     owner: Owner
     pet: Pet
     tasks: list[Task] = field(default_factory=list)
+    planned_tasks: list[Task] = field(default_factory=list)
 
     def add_task(self, task: Task) -> None:
         pass

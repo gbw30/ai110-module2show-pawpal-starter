@@ -32,7 +32,10 @@ Scheduler: it is the brain. It maintaints the list of tasks, decides which tasks
 **b. Design changes**
 
 - Did your design change during implementation?
+Yes. One attribute was added to the Scheduler class after a review identified a missing relationship in the skeleton.
+
 - If yes, describe at least one change and why you made it.
+planned_tasks function was added as an attribute on Scheduler because there was no place to store the generate_plan, which lead to explain_plan having nothing to reference.
 
 ---
 
