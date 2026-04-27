@@ -99,3 +99,54 @@ def test_rate_limit_allows_after_cooldown(monkeypatch):
 
     assert result["action"] == "answer_question"
     assert result["message"] == "Mochi is a good dog!"
+
+
+def test_ask_assistant_handles_invalid_json(monkeypatch):
+    """ask_assistant must return an error dict when Gemini returns non-JSON."""
+    ai_assistant._last_request_ts = _time.time() - ai_assistant.COOLDOWN_SECONDS - 1
+
+    class FakeResponse:
+        text = "This is not JSON at all"
+
+    class FakeModels:
+        def generate_content(self, **kwargs):
+            return FakeResponse()
+
+    class FakeClient:
+        def __init__(self, **kwargs):
+            self.models = FakeModels()
+
+    monkeypatch.setattr("ai_assistant.genai.Client", FakeClient)
+
+    result = ai_assistant.ask_assistant(
+        user_message="hello",
+        context="Owner: Jordan",
+        api_key="fake-key",
+    )
+
+    assert result["action"] == "error"
+    assert "trouble" in result["message"].lower()
+
+
+def test_ask_assistant_handles_api_exception(monkeypatch):
+    """ask_assistant must return an error dict when the API call raises."""
+    ai_assistant._last_request_ts = _time.time() - ai_assistant.COOLDOWN_SECONDS - 1
+
+    class FakeModels:
+        def generate_content(self, **kwargs):
+            raise RuntimeError("API quota exceeded")
+
+    class FakeClient:
+        def __init__(self, **kwargs):
+            self.models = FakeModels()
+
+    monkeypatch.setattr("ai_assistant.genai.Client", FakeClient)
+
+    result = ai_assistant.ask_assistant(
+        user_message="hello",
+        context="Owner: Jordan",
+        api_key="fake-key",
+    )
+
+    assert result["action"] == "error"
+    assert "error" in result["message"].lower()
