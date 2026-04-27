@@ -4,6 +4,8 @@ from datetime import time as dt_time
 import streamlit as st
 
 from pawpal_system import Owner, Pet, Scheduler, Task
+import os
+from ai_assistant import ask_assistant, build_context
 
 
 PRIORITY_MAP = {"high": 1, "medium": 2, "low": 3}
@@ -326,3 +328,175 @@ if st.button("Generate schedule", type="primary"):
                 st.dataframe(excluded_rows, use_container_width=True, hide_index=True)
             else:
                 st.success("All incomplete tasks fit within the available time.")
+
+st.divider()
+
+# ── AI Assistant ─────────────────────────────────────────────────────────────
+
+st.subheader("AI Assistant")
+st.caption(
+    "Ask in plain English — add tasks, get schedule advice, or ask pet-care questions."
+)
+
+api_key = os.environ.get("GOOGLE_API_KEY", "")
+
+if not api_key:
+    st.warning(
+        "Set the GOOGLE_API_KEY environment variable (in your .env file) to enable the AI assistant."
+    )
+else:
+    if "last_ai_request" not in st.session_state:
+        st.session_state.last_ai_request = 0.0
+    if "ai_response" not in st.session_state:
+        st.session_state.ai_response = None
+
+    user_message = st.text_input(
+        "What would you like to do?",
+        placeholder="e.g. Add a 30-minute morning walk for Mochi",
+        key="ai_input",
+    )
+
+    if st.button("Ask PawPal", type="primary", key="ai_submit"):
+        if not user_message.strip():
+            st.warning("Please type a request first.")
+        else:
+            context = build_context(
+                owner_name=owner_name,
+                pet_name=pet_name,
+                species=species,
+                time_available=int(time_available),
+                tasks=st.session_state.tasks,
+            )
+
+            result = ask_assistant(user_message, context, api_key)
+            st.session_state.ai_response = result
+
+            if result["action"] == "error":
+                st.error(result["message"])
+            elif result["action"] in ("answer_question", "generate_schedule"):
+                st.info(result["message"])
+            elif result["action"] == "add_task":
+                added = []
+                rejected = []
+                for task in result.get("tasks", []):
+                    name = str(task.get("name", "")).strip()
+                    dur = task.get("duration_minutes", 0)
+                    pri = str(task.get("priority", "medium")).lower()
+                    recur = task.get("recurrence")
+                    start = task.get("start_time")
+
+                    # Validation
+                    if not name:
+                        rejected.append("Task with empty name skipped.")
+                        continue
+                    if not isinstance(dur, (int, float)) or dur <= 0:
+                        rejected.append(f'"{name}" skipped — invalid duration.')
+                        continue
+                    if pri not in ("high", "medium", "low"):
+                        rejected.append(f'"{name}" skipped — invalid priority "{pri}".')
+                        continue
+
+                    # Check duplicate
+                    duplicate = any(
+                        t["title"] == name and not t.get("completed", False)
+                        for t in st.session_state.tasks
+                    )
+                    if duplicate:
+                        rejected.append(f'"{name}" already exists as an incomplete task.')
+                        continue
+
+                    if recur == "none":
+                        recur = None
+                    if recur and recur not in ("daily", "weekly"):
+                        recur = None
+
+                    st.session_state.tasks.append({
+                        "title": name,
+                        "duration_minutes": int(dur),
+                        "priority": pri,
+                        "recurrence": recur,
+                        "completed": False,
+                        "start_time": start if start else None,
+                    })
+                    added.append(name)
+
+                if added:
+                    st.success(result["message"])
+                if rejected:
+                    for r in rejected:
+                        st.warning(r)
+
+            elif result["action"] == "remove_task":
+                removed = []
+                not_found = []
+                for task in result.get("tasks", []):
+                    name = str(task.get("name", "")).strip()
+                    idx = None
+                    for i, t in enumerate(st.session_state.tasks):
+                        if t["title"] == name:
+                            idx = i
+                            break
+                    if idx is not None:
+                        st.session_state.tasks.pop(idx)
+                        removed.append(name)
+                    else:
+                        not_found.append(name)
+
+                if removed:
+                    st.success(result["message"])
+                if not_found:
+                    for n in not_found:
+                        st.warning(f'Task "{n}" not found.')
+
+            elif result["action"] == "complete_task":
+                completed_names = []
+                not_found = []
+                for task in result.get("tasks", []):
+                    name = str(task.get("name", "")).strip()
+                    idx = find_task_idx(name, completed=False)
+                    if idx is not None:
+                        st.session_state.tasks[idx]["completed"] = True
+                        completed_names.append(name)
+                    else:
+                        not_found.append(name)
+
+                if completed_names:
+                    st.success(result["message"])
+                if not_found:
+                    for n in not_found:
+                        st.warning(f'Incomplete task "{n}" not found.')
+
+            elif result["action"] == "edit_task":
+                edited = []
+                not_found = []
+                for task in result.get("tasks", []):
+                    original = str(task.get("original_name", "")).strip()
+                    idx = None
+                    for i, t in enumerate(st.session_state.tasks):
+                        if t["title"] == original and not t.get("completed", False):
+                            idx = i
+                            break
+                    if idx is None:
+                        not_found.append(original)
+                        continue
+
+                    if task.get("name"):
+                        st.session_state.tasks[idx]["title"] = str(task["name"]).strip()
+                    if task.get("duration_minutes") and int(task["duration_minutes"]) > 0:
+                        st.session_state.tasks[idx]["duration_minutes"] = int(task["duration_minutes"])
+                    if task.get("priority") and str(task["priority"]).lower() in ("high", "medium", "low"):
+                        st.session_state.tasks[idx]["priority"] = str(task["priority"]).lower()
+                    if "recurrence" in task:
+                        recur = task["recurrence"]
+                        if recur == "none":
+                            recur = None
+                        st.session_state.tasks[idx]["recurrence"] = recur
+                    if "start_time" in task:
+                        st.session_state.tasks[idx]["start_time"] = task["start_time"]
+                    edited.append(original)
+
+                if edited:
+                    st.success(result["message"])
+                if not_found:
+                    for n in not_found:
+                        st.warning(f'Task "{n}" not found for editing.')
