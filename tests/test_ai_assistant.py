@@ -46,3 +46,56 @@ def test_build_context_empty_tasks():
         tasks=[],
     )
     assert "no tasks" in ctx.lower() or "0" in ctx
+
+
+import json
+import time as _time
+import ai_assistant
+
+
+def test_rate_limit_rejects_rapid_calls():
+    """ask_assistant must return an error dict if called within the cooldown window."""
+    ai_assistant._last_request_ts = _time.time()
+
+    result = ai_assistant.ask_assistant(
+        user_message="Add a walk",
+        context="Owner: Jordan\nPet: Mochi (species: dog)",
+        api_key="fake-key",
+    )
+
+    assert result["action"] == "error"
+    assert "wait" in result["message"].lower() or "cooldown" in result["message"].lower()
+
+
+def test_rate_limit_allows_after_cooldown(monkeypatch):
+    """ask_assistant must allow a call after the cooldown period has elapsed."""
+    ai_assistant._last_request_ts = _time.time() - ai_assistant.COOLDOWN_SECONDS - 1
+
+    # Mock the Gemini client so we don't need a real API key
+    fake_response_text = json.dumps({
+        "action": "answer_question",
+        "tasks": [],
+        "message": "Mochi is a good dog!"
+    })
+
+    class FakeResponse:
+        text = fake_response_text
+
+    class FakeModels:
+        def generate_content(self, **kwargs):
+            return FakeResponse()
+
+    class FakeClient:
+        def __init__(self, **kwargs):
+            self.models = FakeModels()
+
+    monkeypatch.setattr("ai_assistant.genai.Client", FakeClient)
+
+    result = ai_assistant.ask_assistant(
+        user_message="Is Mochi a good dog?",
+        context="Owner: Jordan\nPet: Mochi (species: dog)",
+        api_key="fake-key",
+    )
+
+    assert result["action"] == "answer_question"
+    assert result["message"] == "Mochi is a good dog!"
