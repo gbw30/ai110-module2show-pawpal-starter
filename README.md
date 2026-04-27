@@ -8,6 +8,10 @@ The project is split into a UI layer in `app.py`, a scheduling domain model in `
 
 ![PawPal+ UI](pawpal_ui.png)
 
+## Original Project
+
+The original Modules 1-3 project was PawPal+, a pet-care scheduler focused on helping an owner add care tasks, track pet and owner constraints, detect timing conflicts, and generate a daily care plan. Its core capabilities were task management, recurring task handling, priority-based scheduling, and conflict detection. The AI extension keeps that scheduler as the source of truth while adding natural-language task control and built-in reliability checks.
+
 ## Features
 
 - Streamlit dashboard for owner and pet setup, task entry, task review, filtering, sorting, completion, removal, and schedule generation.
@@ -21,6 +25,7 @@ The project is split into a UI layer in `app.py`, a scheduling domain model in `
 - Clear schedule outputs: the UI shows time-budget metrics, scheduled tasks, excluded tasks, and conflict warnings so the result is easy to review.
 - AI Reliability Evaluation: built-in checks verify that the AI Assistant returns correct structured actions, avoids unnecessary Gemini calls, and handles quota errors safely.
 - AI Assistant with local-first parsing: most task commands (add, remove, complete, list) are handled locally with zero API calls. Gemini is used only as a lightweight intent classifier for ambiguous requests. All user-facing messages are generated locally.
+- Local RAG for pet-care Q&A: a curated knowledge base with species-specific entries (exercise, feeding, grooming, health, training) answers common pet-care questions without any API calls. When Gemini is called, retrieved knowledge is injected into the prompt for grounded answers.
 
 ## How It Works
 
@@ -45,7 +50,45 @@ The AI Assistant uses a local-first architecture. Most requests — adding tasks
 
 ### AI Reliability Evaluation
 
-PawPal+ includes an integrated reliability/testing system in the main Streamlit app. The "AI Reliability Check" runs deterministic prompts against the assistant and reports total checks, pass count, pass rate, and case-level results. The default check does not call Gemini, preserving the free tier. An optional live Gemini smoke test can validate the API-backed path when quota is available.
+PawPal+ includes an integrated reliability/testing system in the main Streamlit app. The "AI Reliability Check" runs deterministic prompts against the assistant and reports total checks, pass count, pass rate, capability category, and case-level results. The default check matches the current local-first design: task creation, natural add phrasing, completion, removal, task listing, schedule guidance, and missing-key guardrails. It does not call Gemini, preserving the free tier. An optional live Gemini smoke test can validate the API-backed path when quota is available.
+
+## System Diagram
+
+```mermaid
+flowchart TD
+    A[User input in Streamlit] --> B[app.py UI]
+    B --> C[AI Assistant local parser]
+    C -->|Known task intent| D[Validated structured action]
+    C -->|Ambiguous intent| E[Optional Gemini classifier]
+    E --> D
+    D --> F[app.py validation]
+    F --> G[Scheduler and session task state]
+    G --> H[Task list or daily schedule output]
+
+    I[AI Reliability Check] --> J[ai_reliability.py]
+    J --> C
+    J --> K[Pass/fail metrics and case table]
+    K --> L[Human review in Streamlit]
+```
+
+### Architecture Overview
+
+User input starts in the Streamlit UI. The AI Assistant first tries to classify common task commands locally, which avoids unnecessary API calls. If a request is too ambiguous for local parsing, Gemini can classify the intent into a structured action. The app validates the action before changing task state, and the Scheduler remains responsible for planning, recurrence, and conflict logic. Human review happens through the visible task list, schedule output, and the AI Reliability Check results.
+
+## Sample Interactions
+
+| User input | AI result | Why it matters |
+|------------|-----------|----------------|
+| `Add a daily 20 minute morning walk for Mochi at 8am high priority` | Returns `add_task` locally with no Gemini call. | Shows natural-language task creation while preserving free-tier quota. |
+| `Mark morning walk done` | Returns `complete_task` for the matching task. | Shows the assistant can map plain English to a safe app action. |
+| `Run AI Reliability Check` | Displays pass rate, capability categories, and a case table. | Shows the project tests its AI behavior inside the main app. |
+
+## Design Decisions
+
+- **Local-first AI:** Common task actions are parsed with local rules so the app still works when Gemini free-tier quota is unavailable.
+- **Gemini as fallback classifier:** Gemini is used only for ambiguous requests instead of generating every response, reducing token usage and 429 failures.
+- **Scheduler as source of truth:** AI proposes structured actions, but `app.py` validates them and `Scheduler` handles planning rules.
+- **Integrated reliability checks:** The AI Reliability Check is part of the Streamlit app, not just a standalone test script, so users can inspect AI behavior directly.
 
 ## Running the App
 
@@ -114,7 +157,7 @@ Run the automated tests with:
 python -m pytest tests/ -v
 ```
 
-The suite currently contains 30 tests covering:
+The suite currently contains 39 tests covering:
 
 - task addition
 - time-budget enforcement
@@ -128,10 +171,25 @@ The suite currently contains 30 tests covering:
 - single-pet and cross-pet conflict detection
 - non-overlapping back-to-back tasks
 - filtering by pet name
-- AI assistant context building, local-first parsing, rate limiting, and error handling
+- AI assistant context building, local-first parsing, local RAG, rate limiting, and error handling
+- pet-care knowledge base retrieval, species filtering, and Gemini context formatting
 - AI reliability evaluation scoring, no-API default behavior, and live Gemini failure isolation
 
 This project satisfies the advanced AI guideline through a **Reliability or Testing System** integrated into the main application. The reliability check measures whether the AI Assistant produces the expected structured actions and whether default checks avoid unnecessary Gemini usage.
+
+### Testing Summary
+
+The current automated suite passes with `39 passed`. Scheduler tests verify task addition, recurring tasks, conflict detection, filtering, and the priority-first scheduling algorithm. AI assistant tests verify local parsing, local RAG Q&A, Gemini fallback error handling, rate limiting, and quota-safe behavior. Knowledge base tests verify retrieval scoring, species filtering, and Gemini context formatting. AI reliability tests verify that the in-app reliability check reports expected actions, avoids Gemini by default, and isolates optional live Gemini failures such as 429 quota errors.
+
+## Reflection And Ethics
+
+**Limitations and bias:** The local parser is intentionally simple and regex-based, so it can miss unusual phrasing or interpret ambiguous requests incorrectly. Gemini can also misclassify ambiguous text, so the app validates every action before applying it.
+
+**Misuse prevention:** PawPal+ should not be used as veterinary advice or emergency medical guidance. The app is designed for scheduling and organizing care tasks, not diagnosing health issues. Risk is reduced by keeping Gemini as a classifier, validating task changes, and leaving final decisions to the human owner.
+
+**Reliability surprise:** The biggest surprise was that Gemini free-tier `429 RESOURCE_EXHAUSTED` errors could happen even with a fresh API key and fresh AI Studio project. That led to the local-first design and an in-app reliability check that can run without Gemini quota.
+
+**AI collaboration:** A helpful AI suggestion was adding a reliability evaluation system so the project could prove the assistant works. A flawed suggestion was relying too heavily on Gemini for every interaction, which caused quota problems and made the app less dependable.
 
 ## Project Structure
 
@@ -140,11 +198,13 @@ This project satisfies the advanced AI guideline through a **Reliability or Test
 |-- app.py
 |-- ai_assistant.py
 |-- ai_reliability.py
+|-- pet_knowledge.py
 |-- pawpal_system.py
 |-- tests/
 |   |-- test_pawpal.py
 |   |-- test_ai_assistant.py
 |   |-- test_ai_reliability.py
+|   |-- test_pet_knowledge.py
 |-- main.py
 |-- README.md
 |-- requirements.txt
@@ -160,10 +220,12 @@ This project satisfies the advanced AI guideline through a **Reliability or Test
 - `app.py`: Streamlit interface for entering tasks and generating a schedule.
 - `ai_assistant.py`: local-first intent parser with Gemini classifier fallback.
 - `ai_reliability.py`: integrated reliability evaluation harness for AI assistant behavior.
+- `pet_knowledge.py`: curated pet-care knowledge base with keyword-based retrieval (local RAG).
 - `pawpal_system.py`: domain classes and scheduling logic.
 - `tests/test_pawpal.py`: automated verification of core scheduler behavior.
 - `tests/test_ai_assistant.py`: tests for context building, rate limiting, and error handling.
 - `tests/test_ai_reliability.py`: tests for the AI reliability evaluation system.
+- `tests/test_pet_knowledge.py`: tests for knowledge base retrieval and formatting.
 - `main.py`: scriptable demo for exercising the backend without Streamlit.
 - `initial_design.md`: early design notes.
 - `current_design.md`: updated design summary aligned to the implemented system.

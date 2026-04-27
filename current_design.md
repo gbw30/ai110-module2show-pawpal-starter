@@ -147,14 +147,38 @@ requests.
 Supported actions: `add_task`, `remove_task`, `complete_task`, `edit_task`,
 `generate_schedule`, `answer_question`.
 
+## Pet-Care Knowledge Base (pet_knowledge.py)
+
+`pet_knowledge.py` implements a local RAG (Retrieval-Augmented Generation)
+system for pet-care Q&A without requiring any API calls.
+
+- **Knowledge base:** 11 curated entries covering exercise, feeding, grooming,
+  health, training, scheduling, and getting started — organized by species
+  (dog, cat, general).
+- **`retrieve(question, species, top_k)`** scores entries by keyword matches
+  (+1 per hit) and species relevance (+2 for matching species). Returns the
+  top-k highest-scoring entries.
+- **`answer_from_knowledge(question, species)`** attempts to answer a question
+  locally. Returns a formatted answer string if relevant entries are found
+  (at least one keyword match required), or `None` if the knowledge base
+  can't help.
+- **`format_context_for_gemini(entries)`** formats retrieved entries as compact
+  context to augment the Gemini classifier prompt when a question falls
+  through to the API.
+- **Integration:** `_local_task_response()` in `ai_assistant.py` checks the
+  knowledge base before falling through to Gemini. When Gemini is called,
+  retrieved entries are injected into the prompt for grounded answers.
+
 ## AI Reliability Layer (ai_reliability.py)
 
 `ai_reliability.py` is a pure-Python evaluation module that checks whether the
 AI Assistant returns expected structured actions.
 
-- **`run_reliability_checks()`** runs deterministic prompts for add, complete,
-  remove, and list behavior, then reports total checks, passed checks, failed
-  checks, pass rate, and case-level details.
+- **`run_reliability_checks()`** runs deterministic prompts that match current
+  assistant capabilities: local task creation, natural add phrasing, completion,
+  removal, task listing, schedule guidance, and missing-key guardrails. It then
+  reports total checks, passed checks, failed checks, pass rate, capability
+  category, and case-level details.
 - **Free-tier friendly by default:** local checks do not call Gemini, so the
   reliability feature can be used even when free-tier quota is exhausted.
 - **Optional live smoke test:** when explicitly enabled, one Gemini-backed
