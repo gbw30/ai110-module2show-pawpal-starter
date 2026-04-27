@@ -19,6 +19,7 @@ The project is split into a UI layer in `app.py`, a scheduling domain model in `
 - Duplicate protection: `add_task()` blocks duplicate incomplete task names while still allowing a task name to be reused after the prior task is completed.
 - Filtering and sorting utilities: the backend supports filtering by completion state and pet name, and the UI supports sorting by default priority order or shortest duration.
 - Clear schedule outputs: the UI shows time-budget metrics, scheduled tasks, excluded tasks, and conflict warnings so the result is easy to review.
+- AI Assistant powered by Gemini: natural language task management, pet-care Q&A, schedule advice, and conflict explanations — all grounded in your current PawPal state.
 
 ## How It Works
 
@@ -36,6 +37,10 @@ The planner uses a greedy algorithm. It evaluates incomplete tasks in priority o
 ### Conflict algorithm
 
 When a task has a `start_time`, the scheduler treats it as a time window `[start, end)`. Two tasks conflict only when those windows overlap. This means a task ending at `07:10` and another starting at `07:10` are not treated as a conflict.
+
+### AI Assistant
+
+The AI Assistant uses Google's Gemini API as a natural language interface over the existing scheduler. When you type a request, a single API call converts it into a structured action (add task, remove task, edit task, etc.) with a friendly explanation. The app validates every suggestion before applying it — Gemini proposes, the Scheduler decides. A 10-second cooldown between requests prevents excessive API usage.
 
 ## Running the App
 
@@ -66,6 +71,16 @@ Install dependencies:
 pip install -r requirements.txt
 ```
 
+Set your Gemini API key:
+
+Create a `.env` file in the project root (or set the environment variable directly):
+
+```bash
+GOOGLE_API_KEY=your-api-key-here
+```
+
+Get a free API key at https://aistudio.google.com/apikey
+
 ### Start the Streamlit UI
 
 ```bash
@@ -83,16 +98,17 @@ Streamlit will print a local URL, typically `http://localhost:8501`.
 5. Mark tasks done or remove them from the list.
 6. Click `Generate schedule` to run conflict detection and build the daily plan.
 7. Review scheduled tasks, excluded tasks, and time-budget metrics.
+8. Use the AI Assistant to add tasks in plain English, ask pet-care questions, or get schedule advice.
 
 ## Testing
 
 Run the automated tests with:
 
 ```bash
-python -m pytest tests/test_pawpal.py -v
+python -m pytest tests/ -v
 ```
 
-The suite currently contains 15 tests covering:
+The suite currently contains 22 tests covering:
 
 - task addition
 - time-budget enforcement
@@ -106,15 +122,18 @@ The suite currently contains 15 tests covering:
 - single-pet and cross-pet conflict detection
 - non-overlapping back-to-back tasks
 - filtering by pet name
+- AI assistant context building, rate limiting, and error handling
 
 ## Project Structure
 
 ```text
 .
 |-- app.py
+|-- ai_assistant.py
 |-- pawpal_system.py
 |-- tests/
 |   |-- test_pawpal.py
+|   |-- test_ai_assistant.py
 |-- main.py
 |-- README.md
 |-- requirements.txt
@@ -128,8 +147,10 @@ The suite currently contains 15 tests covering:
 ### File guide
 
 - `app.py`: Streamlit interface for entering tasks and generating a schedule.
+- `ai_assistant.py`: Gemini API wrapper for natural language interaction.
 - `pawpal_system.py`: domain classes and scheduling logic.
 - `tests/test_pawpal.py`: automated verification of core scheduler behavior.
+- `tests/test_ai_assistant.py`: tests for context building, rate limiting, and error handling.
 - `main.py`: scriptable demo for exercising the backend without Streamlit.
 - `initial_design.md`: early design notes.
 - `current_design.md`: updated design summary aligned to the implemented system.

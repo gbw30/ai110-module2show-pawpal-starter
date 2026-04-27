@@ -57,6 +57,14 @@ classDiagram
     generate_plan ..> planned_tasks : writes to
     explain_plan ..> planned_tasks : reads from
     detect_conflicts ..> Task : reads start_time
+
+    class AIAssistant {
+        <<module>>
+        +build_context(owner_name, pet_name, species, time_available, tasks) str
+        +ask_assistant(user_message, context, api_key) dict
+    }
+
+    AIAssistant ..> Scheduler : "proposes actions validated by app.py"
 ```
 
 ## Design Notes
@@ -99,3 +107,23 @@ classDiagram
 - Recurrence spawning is handled in the UI's Done button handler: when a recurring
   task is marked complete, a new task dict with the correct `due_date` is appended
   to `st.session_state.tasks` before `st.rerun()`.
+
+## AI Assistant Layer (ai_assistant.py)
+
+`ai_assistant.py` is a pure-Python module with no Streamlit dependency. It wraps
+the Gemini API to provide natural language interaction over the existing Scheduler.
+
+- **`build_context()`** serializes the current PawPal state (owner, pet, tasks)
+  into a text block injected into the Gemini prompt.
+- **`ask_assistant()`** sends a single API call to Gemini with a system prompt
+  that enforces structured JSON output. Returns a dict with `action`, `tasks`,
+  and `message` fields.
+- **Rate limiting:** a module-level timestamp enforces a 10-second cooldown
+  between API calls.
+- **Workflow:** User types a request → one Gemini call extracts intent into
+  structured JSON → `app.py` validates the payload → valid changes are applied
+  to `st.session_state.tasks` → friendly message is displayed. Gemini never
+  mutates session state directly.
+
+Supported actions: `add_task`, `remove_task`, `complete_task`, `edit_task`,
+`generate_schedule`, `answer_question`.
