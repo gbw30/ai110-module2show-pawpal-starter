@@ -6,11 +6,19 @@ The project is split into a UI layer in `app.py`, a scheduling domain model in `
 
 ## 📸 Demo
 
-![PawPal+ UI](pawpal_ui.png)
+![PawPal+ UI](assets/diagrams/pawpal_ui.png)
 
 ## Original Project
 
 The original Modules 1-3 project was PawPal+, a pet-care scheduler focused on helping an owner add care tasks, track pet and owner constraints, detect timing conflicts, and generate a daily care plan. Its core capabilities were task management, recurring task handling, priority-based scheduling, and conflict detection. The AI extension keeps that scheduler as the source of truth while adding natural-language task control and built-in reliability checks.
+
+## Submission Artifacts
+
+- Functional code is included in this repository.
+- System architecture is documented in the Mermaid diagram below and in `current_design.md`.
+- Demo screenshot and UML image are stored in `assets/diagrams/`.
+- AI reflections, limitations, bias, misuse prevention, and testing results are summarized in `model_card.md`.
+- Replace `YOUR_LOOM_LINK_HERE` in the Presentation And Portfolio section with the final Loom walkthrough link before submission.
 
 ## Features
 
@@ -205,6 +213,10 @@ The current automated suite passes with `39 passed`. Scheduler tests verify task
 |-- app.py
 |-- ai_assistant.py
 |-- ai_reliability.py
+|-- assets/
+|   `-- diagrams/
+|       |-- pawpal_ui.png
+|       `-- uml_final.png
 |-- pet_knowledge.py
 |-- pawpal_system.py
 |-- tests/
@@ -213,13 +225,13 @@ The current automated suite passes with `39 passed`. Scheduler tests verify task
 |   |-- test_ai_reliability.py
 |   |-- test_pet_knowledge.py
 |-- main.py
+|-- model_card.md
 |-- README.md
 |-- requirements.txt
 |-- initial_design.md
 |-- current_design.md
 |-- reflection.md
-|-- pawpal_ui.png
-`-- uml_final.png
+`-- docs/
 ```
 
 ### File guide
@@ -227,6 +239,7 @@ The current automated suite passes with `39 passed`. Scheduler tests verify task
 - `app.py`: Streamlit interface for entering tasks and generating a schedule.
 - `ai_assistant.py`: local-first intent parser with Gemini classifier fallback.
 - `ai_reliability.py`: integrated reliability evaluation harness for AI assistant behavior.
+- `assets/diagrams/`: demo screenshot and UML/system diagram image assets.
 - `pet_knowledge.py`: curated pet-care knowledge base with keyword-based retrieval (local RAG).
 - `pawpal_system.py`: domain classes and scheduling logic.
 - `tests/test_pawpal.py`: automated verification of core scheduler behavior.
@@ -234,14 +247,26 @@ The current automated suite passes with `39 passed`. Scheduler tests verify task
 - `tests/test_ai_reliability.py`: tests for the AI reliability evaluation system.
 - `tests/test_pet_knowledge.py`: tests for knowledge base retrieval and formatting.
 - `main.py`: scriptable demo for exercising the backend without Streamlit.
+- `model_card.md`: standardized AI documentation covering capabilities, limitations, bias, misuse prevention, testing, and AI collaboration.
 - `initial_design.md`: early design notes.
 - `current_design.md`: updated design summary aligned to the implemented system.
 - `reflection.md`: project reflection and testing notes.
-- `pawpal_ui.png`: screenshot used in this README demo section.
-- `uml_final.png`: final UML diagram for the project.
+- `assets/diagrams/pawpal_ui.png`: screenshot used in this README demo section.
+- `assets/diagrams/uml_final.png`: final UML diagram image for the project.
 
 ## Notes and Current Scope
 
 - Task data is stored in Streamlit session state, not a database. Restarting the app clears the in-memory UI state.
 - The current Streamlit UI manages one pet at a time, while cross-pet conflict detection is available through the backend API and test suite.
 - The backend also supports a plain-text plan explanation through `Scheduler.explain_plan()`, which is useful for console output and debugging.
+
+## Presentation And Portfolio
+
+- GitHub Repository: [PawPal+](https://github.com/gbw30/ai110-module2show-pawpal-starter)
+- Loom Walkthrough: [Video Demo](https://www.loom.com/share/25faabd2dfd64407b728827db13fe761)
+
+Before final submission, make sure the repository is public, final changes are committed and pushed, and the Loom placeholder above has been replaced with the actual walkthrough link. The walkthrough should show 2-3 example inputs, local RAG/AI behavior, the reliability check, and clear outputs.
+
+### Portfolio Reflection
+
+PawPal+ shows my ability to build an AI-assisted application that is practical, reliable, and user-focused. I designed the AI system to be local-first, quota-safe, and testable instead of relying on an external model for every interaction. This project reflects how I approach AI engineering: use AI where it adds value, validate its outputs, and build guardrails so the product still works when the model or API is unavailable.
