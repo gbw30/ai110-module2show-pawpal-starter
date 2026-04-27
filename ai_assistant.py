@@ -15,6 +15,7 @@ import time as _time
 
 from google import genai
 from google.genai import errors
+from pet_knowledge import answer_from_knowledge, retrieve, format_context_for_gemini
 
 COOLDOWN_SECONDS: int = 10
 RATE_LIMIT_FALLBACK_SECONDS: int = 60
@@ -202,6 +203,11 @@ def _extract_pet_name(context: str) -> str | None:
     return match.group(1).strip() if match else None
 
 
+def _extract_species(context: str) -> str:
+    match = re.search(r"species:\s*(\w+)", context)
+    return match.group(1).strip() if match else "other"
+
+
 def _extract_duration_minutes(message: str) -> int | None:
     hour_match = re.search(r"\b(\d+(?:\.\d+)?)\s*(?:hours?|hrs?|h)\b", message, re.I)
     minute_match = re.search(r"\b(\d+)\s*(?:minutes?|mins?|m)\b", message, re.I)
@@ -348,6 +354,25 @@ def _local_task_response(user_message: str, context: str, tasks: list[dict]) -> 
             "source": "local",
         }
 
+    # ── Pet-care Q&A from local knowledge base ──
+    _QA_SIGNAL = (
+        r"\b(how|what|when|why|should|can|do|does|is|are|much|often|long)\b"
+    )
+    _NOT_QA = r"\b(add|create|remove|delete|complete|done|mark|need to|want to|going to|gotta|have to)\b"
+    _HAS_DURATION = r"\b\d+\s*(?:minutes?|mins?|m|hours?|hrs?|h)\b"
+    if (re.search(_QA_SIGNAL, lowered)
+            and not re.search(_NOT_QA, lowered)
+            and not re.search(_HAS_DURATION, lowered)):
+        species = _extract_species(context)
+        answer = answer_from_knowledge(user_message, species)
+        if answer:
+            return {
+                "action": "answer_question",
+                "tasks": [],
+                "message": answer,
+                "source": "local_rag",
+            }
+
     _ADD_INTENT = (
         r"\b(add|create|schedule|set up)\b"
         r"|\bi\s+(need|want|have|should|got?ta|will|am going)\s+to\b"
@@ -462,7 +487,11 @@ def ask_assistant(
 
     try:
         client = genai.Client(api_key=api_key)
-        prompt = f"STATE:\n{_compact_context(context)}\n\nREQUEST:\n{user_message}"
+        species = _extract_species(context)
+        rag_entries = retrieve(user_message, species, top_k=2)
+        rag_context = format_context_for_gemini(rag_entries)
+        rag_block = f"\n\n{rag_context}" if rag_context else ""
+        prompt = f"STATE:\n{_compact_context(context)}{rag_block}\n\nREQUEST:\n{user_message}"
         response = client.models.generate_content(
             model=DEFAULT_GEMINI_MODEL,
             contents=prompt,

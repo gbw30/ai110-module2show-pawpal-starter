@@ -160,6 +160,28 @@ def test_local_complete_task_does_not_call_gemini(monkeypatch):
     assert result["tasks"] == [{"name": "Morning walk"}]
 
 
+def test_local_rag_answers_pet_care_question(monkeypatch):
+    """Pet-care questions should be answered from the knowledge base without Gemini."""
+    ai_assistant._next_allowed_ts = _time.time() - 1
+
+    class FakeClient:
+        def __init__(self, **kwargs):
+            raise AssertionError("Gemini should not be called for knowledge base Q&A")
+
+    monkeypatch.setattr("ai_assistant.genai.Client", FakeClient)
+
+    result = ai_assistant.ask_assistant(
+        user_message="How much exercise does my dog need?",
+        context="Owner: Jordan\nPet: Mochi (species: dog)",
+        api_key="fake-key",
+        tasks=[],
+    )
+
+    assert result["action"] == "answer_question"
+    assert result["source"] == "local_rag"
+    assert "minutes" in result["message"].lower() or "hour" in result["message"].lower()
+
+
 def test_local_natural_language_add_task(monkeypatch):
     """Natural phrasing like 'I need to walk my dog' should be handled locally."""
     ai_assistant._next_allowed_ts = _time.time() - 1
