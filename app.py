@@ -5,7 +5,10 @@ import streamlit as st
 
 from pawpal_system import Owner, Pet, Scheduler, Task
 import os
+from dotenv import load_dotenv
 from ai_assistant import ask_assistant, build_context
+
+load_dotenv()
 
 
 PRIORITY_MAP = {"high": 1, "medium": 2, "low": 3}
