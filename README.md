@@ -2,7 +2,7 @@
 
 PawPal+ is a Streamlit application and Python scheduling engine for daily pet care planning. It helps a pet owner capture care tasks, manage recurring work, detect timing conflicts, and build a day plan that respects limited available time.
 
-The project is split into a UI layer in `app.py`, a scheduling domain model in `pawpal_system.py`, and a pytest suite in `tests/test_pawpal.py`.
+The project is split into a UI layer in `app.py`, a scheduling domain model in `pawpal_system.py`, local AI support modules, and a pytest suite.
 
 ## 📸 Demo
 
@@ -59,21 +59,26 @@ flowchart TD
     A[User input in Streamlit] --> B[app.py UI]
     B --> C[AI Assistant local parser]
     C -->|Known task intent| D[Validated structured action]
-    C -->|Ambiguous intent| E[Optional Gemini classifier]
+    C -->|Pet-care question| M[Local RAG retriever: pet_knowledge.py]
+    M -->|Relevant local guidance| N[Local pet-care answer]
+    M -->|No local answer| E[Optional Gemini classifier with retrieved context]
+    C -->|Ambiguous intent| E
     E --> D
     D --> F[app.py validation]
     F --> G[Scheduler and session task state]
     G --> H[Task list or daily schedule output]
+    N --> H
 
     I[AI Reliability Check] --> J[ai_reliability.py]
     J --> C
+    J --> M
     J --> K[Pass/fail metrics and case table]
     K --> L[Human review in Streamlit]
 ```
 
 ### Architecture Overview
 
-User input starts in the Streamlit UI. The AI Assistant first tries to classify common task commands locally, which avoids unnecessary API calls. If a request is too ambiguous for local parsing, Gemini can classify the intent into a structured action. The app validates the action before changing task state, and the Scheduler remains responsible for planning, recurrence, and conflict logic. Human review happens through the visible task list, schedule output, and the AI Reliability Check results.
+User input starts in the Streamlit UI. The AI Assistant first tries to classify common task commands locally, which avoids unnecessary API calls. Pet-care questions are answered from `pet_knowledge.py` when the local RAG retriever finds relevant curated guidance. If a request is too ambiguous for local parsing or local RAG, Gemini can classify the intent with retrieved context. The app validates the action before changing task state, and the Scheduler remains responsible for planning, recurrence, and conflict logic. Human review happens through the visible task list, schedule output, and the AI Reliability Check results.
 
 ## Sample Interactions
 
@@ -81,11 +86,13 @@ User input starts in the Streamlit UI. The AI Assistant first tries to classify 
 |------------|-----------|----------------|
 | `Add a daily 20 minute morning walk for Mochi at 8am high priority` | Returns `add_task` locally with no Gemini call. | Shows natural-language task creation while preserving free-tier quota. |
 | `Mark morning walk done` | Returns `complete_task` for the matching task. | Shows the assistant can map plain English to a safe app action. |
+| `How much exercise does my dog need?` | Returns `answer_question` from local RAG. | Shows retrieval from curated pet-care knowledge without an API call. |
 | `Run AI Reliability Check` | Displays pass rate, capability categories, and a case table. | Shows the project tests its AI behavior inside the main app. |
 
 ## Design Decisions
 
 - **Local-first AI:** Common task actions are parsed with local rules so the app still works when Gemini free-tier quota is unavailable.
+- **Local RAG before Gemini:** Common pet-care questions are answered from a curated knowledge base first, keeping answers grounded and free-tier friendly.
 - **Gemini as fallback classifier:** Gemini is used only for ambiguous requests instead of generating every response, reducing token usage and 429 failures.
 - **Scheduler as source of truth:** AI proposes structured actions, but `app.py` validates them and `Scheduler` handles planning rules.
 - **Integrated reliability checks:** The AI Reliability Check is part of the Streamlit app, not just a standalone test script, so users can inspect AI behavior directly.

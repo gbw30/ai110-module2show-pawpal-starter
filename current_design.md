@@ -66,12 +66,22 @@ classDiagram
 
     AIAssistant ..> Scheduler : "proposes actions validated by app.py"
 
+    class PetKnowledge {
+        <<module>>
+        +retrieve(question, species, top_k) list
+        +answer_from_knowledge(question, species) str|None
+        +format_context_for_gemini(entries) str
+    }
+
+    AIAssistant ..> PetKnowledge : "retrieves local pet-care context"
+
     class AIReliability {
         <<module>>
         +run_reliability_checks(context, tasks, api_key, include_live_gemini) dict
     }
 
     AIReliability ..> AIAssistant : evaluates structured actions
+    AIReliability ..> PetKnowledge : evaluates local RAG behavior
 ```
 
 ## Design Notes
@@ -112,7 +122,8 @@ classDiagram
 - **`st.success` / `st.warning` / `st.error`** — conflict alerts, schedule status,
   and excluded-task notices use the appropriate severity level.
 - **AI Reliability Check expander** runs deterministic assistant checks inside the
-  main app and shows total checks, pass count, pass rate, and case details.
+  main app and shows total checks, pass count, pass rate, capability category,
+  source, errors, and case details.
 - Recurrence spawning is handled in the UI's Done button handler: when a recurring
   task is marked complete, a new task dict with the correct `due_date` is appended
   to `st.session_state.tasks` before `st.rerun()`.
@@ -168,6 +179,8 @@ system for pet-care Q&A without requiring any API calls.
 - **Integration:** `_local_task_response()` in `ai_assistant.py` checks the
   knowledge base before falling through to Gemini. When Gemini is called,
   retrieved entries are injected into the prompt for grounded answers.
+- **Data flow:** pet-care question -> keyword retrieval -> species-aware ranked
+  entries -> local answer when relevant, or compact context for Gemini fallback.
 
 ## AI Reliability Layer (ai_reliability.py)
 
@@ -176,9 +189,9 @@ AI Assistant returns expected structured actions.
 
 - **`run_reliability_checks()`** runs deterministic prompts that match current
   assistant capabilities: local task creation, natural add phrasing, completion,
-  removal, task listing, schedule guidance, and missing-key guardrails. It then
-  reports total checks, passed checks, failed checks, pass rate, capability
-  category, and case-level details.
+  removal, task listing, schedule guidance, local RAG Q&A, and missing-key
+  guardrails. It then reports total checks, passed checks, failed checks, pass
+  rate, capability category, source, errors, and case-level details.
 - **Free-tier friendly by default:** local checks do not call Gemini, so the
   reliability feature can be used even when free-tier quota is exhausted.
 - **Optional live smoke test:** when explicitly enabled, one Gemini-backed

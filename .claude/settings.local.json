@@ -5,7 +5,16 @@
       "Bash(.venv/Scripts/python -m pytest test_pawpal.py -v)",
       "Bash(.venv/Scripts/python -m pytest tests/test_pawpal.py -v)",
       "Bash(.venv/Scripts/python -c \"import app\")",
-      "Bash(python -m pytest tests/test_pawpal.py -v)"
+      "Bash(python -m pytest tests/test_pawpal.py -v)",
+      "Bash(python -c \"import google.generativeai; print\\(google.generativeai.__version__\\)\")",
+      "Bash(pip install:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m ':*)",
+      "Bash(python -m pytest tests/test_ai_assistant.py -v)",
+      "Bash(python -m pytest tests/ -v)",
+      "Bash(python -c \"import py_compile; py_compile.compile\\('app.py', doraise=True\\); print\\('app.py syntax OK'\\)\")",
+      "Bash(python -c ':*)",
+      "Bash(python -m pytest tests/test_pet_knowledge.py tests/test_ai_assistant.py -v)"
     ]
   }
 }

@@ -7,6 +7,7 @@ from pawpal_system import Owner, Pet, Scheduler, Task
 import os
 from dotenv import load_dotenv
 from ai_assistant import ask_assistant, build_context
+from ai_reliability import run_reliability_checks
 
 load_dotenv()
 
@@ -371,11 +372,23 @@ else:
                 tasks=st.session_state.tasks,
             )
 
-            result = ask_assistant(user_message, context, api_key)
+            result = ask_assistant(
+                user_message,
+                context,
+                api_key,
+                tasks=st.session_state.tasks,
+            )
             st.session_state.ai_response = result
 
             if result["action"] == "error":
-                st.error(result["message"])
+                retry_after = result.get("retry_after_seconds")
+                if retry_after:
+                    st.error(
+                        f"{result['message']}\n\n"
+                        f"Retry after: about {int(retry_after)} seconds."
+                    )
+                else:
+                    st.error(result["message"])
             elif result["action"] in ("answer_question", "generate_schedule"):
                 st.info(result["message"])
             elif result["action"] == "add_task":
@@ -503,3 +516,61 @@ else:
                 if not_found:
                     for n in not_found:
                         st.warning(f'Task "{n}" not found for editing.')
+
+with st.expander("AI Reliability Check"):
+    st.caption(
+        "Runs deterministic checks against the AI Assistant's structured actions. "
+        "The default check does not call Gemini."
+    )
+    include_live_gemini = st.checkbox(
+        "Include one live Gemini smoke test",
+        value=False,
+        key="include_live_gemini_eval",
+    )
+    if include_live_gemini and not api_key:
+        st.warning("Set GOOGLE_API_KEY before running the live Gemini smoke test.")
+
+    if st.button("Run reliability check", key="run_ai_reliability_check"):
+        reliability_context = build_context(
+            owner_name=owner_name,
+            pet_name=pet_name,
+            species=species,
+            time_available=int(time_available),
+            tasks=st.session_state.tasks,
+        )
+        st.session_state.ai_reliability_summary = run_reliability_checks(
+            context=reliability_context,
+            tasks=st.session_state.tasks,
+            api_key=api_key,
+            include_live_gemini=include_live_gemini,
+        )
+
+    summary = st.session_state.get("ai_reliability_summary")
+    if summary:
+        r1, r2, r3 = st.columns(3)
+        r1.metric("Total checks", summary["total"])
+        r2.metric("Passed", summary["passed"])
+        r3.metric("Pass rate", f"{summary['pass_rate']:.0%}")
+
+        failed_names = [
+            result["name"] for result in summary["results"] if not result["passed"]
+        ]
+        if failed_names:
+            st.warning("Failed checks: " + ", ".join(failed_names))
+        else:
+            st.success("All AI reliability checks passed.")
+
+        reliability_rows = [
+            {
+                "Case": result["name"],
+                "Capability": result["capability"],
+                "Passed": result["passed"],
+                "Expected": result["expected_action"],
+                "Actual": result["actual_action"],
+                "Source": result["source"],
+                "Error": result.get("error_code") or "",
+                "Message": result["message"],
+            }
+            for result in summary["results"]
+        ]
+        st.dataframe(reliability_rows, use_container_width=True, hide_index=True)

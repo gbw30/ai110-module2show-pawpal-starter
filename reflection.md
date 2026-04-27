@@ -123,3 +123,23 @@ I would improve the UI, it is too basic and barebones. Maybe add user login. Goo
 - What is one important thing you learned about designing systems or working with AI on this project?
 
 Ai is a really good tool for developing systems, but they have to be kept in check as they tend to produce unnecessary complexity.
+
+---
+
+## 6. AI Extension: Reflection and Ethics
+
+**What are the limitations or biases in the AI system?**
+
+The AI Assistant is intentionally local-first, which makes it reliable and free-tier friendly, but the regex parser can miss unusual phrasing. The local pet-care knowledge base is also limited to the curated entries in `pet_knowledge.py`, so it may not cover every species, breed, age, or medical situation. If Gemini is used as a fallback classifier, it can still misclassify ambiguous requests, which is why the app validates every structured action before changing task state.
+
+**Could the AI be misused, and how would you prevent that?**
+
+The biggest misuse risk is treating PawPal+ like veterinary or emergency medical advice. The system should be used for organizing care routines, not diagnosing illness or deciding treatment. I reduced this risk by keeping AI actions structured, validating every task update, using curated local guidance for common questions, and making the human owner responsible for reviewing outputs before acting on them.
+
+**What surprised you while testing reliability?**
+
+The biggest surprise was that Gemini free-tier `429 RESOURCE_EXHAUSTED` errors could happen even with a fresh API key and a fresh Google AI Studio project. That changed the design: instead of calling Gemini for every assistant request, I moved common task commands and common pet-care Q&A into local code and added an in-app reliability check that can run without any Gemini quota.
+
+**How did you collaborate with AI during this project?**
+
+A helpful AI suggestion was to add a reliability evaluation system that measures the assistant's structured actions and exposes the results in the Streamlit app. A flawed AI suggestion was to rely too heavily on Gemini for every interaction, which made the project more fragile because of quota limits. I improved that by changing Gemini into an optional classifier and keeping the Scheduler and local validation as the source of truth.
